@@ -2,9 +2,9 @@
 
 This project is incomplete.
 
-- Detects IP addresses used on the LAN.
-- Identify the intended use of the host that has the IP.
-- Notify duplicate IPs.
+- [x] Detects IP addresses used on the LAN.
+- [ ] Identify the intended use of the host that has the IP.
+- [ ] Notify duplicate IPs.
 
 # For Developers
 
