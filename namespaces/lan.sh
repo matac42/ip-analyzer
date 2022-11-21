@@ -1,31 +1,46 @@
-ip -all netns del
+# 一度全てのネットワーク名前空間を削除する
+ip --all netns delete
 
-ip netns add ns1
-ip netns add ns2
-ip netns add ns3
-ip link add v-net-0 type bridge
-ip link set ns1 v-net-0 up
+# 名前空間を作成する
+ip netns add node1
+ip netns add node2
+ip netns add node3
+ip netns add bridge
 
-ip link add veth-ns1 type veth peer name veth-ns1-br
-ip link add veth-ns2 type veth peer name veth-ns2-br
-ip link add veth-ns3 type veth peer name veth-ns3-br
-ip link set veth-ns1 netns ns1
-ip link set veth-ns1-br master v-net-0
-ip link set veth-ns2 netns ns2
-ip link set veth-ns2-br master v-net-0
-ip link set veth-ns3 netns ns3
-ip link set veth-ns3-br master v-net-0
-ip -n ns1 addr add 192.168.1.1/24 dev veth-ns1
-ip -n ns2 addr add 192.168.1.2/24 dev veth-ns2
-ip -n ns3 addr add 192.168.1.3/24 dev veth-ns3
-ip -n ns1 link set veth-ns1 up
-ip -n ns2 link set veth-ns2 up
-ip -n ns3 link set veth-ns3 up
-ip link set veth-ns1-br up
-ip link set veth-ns2-br up
-ip link set veth-ns3-br up
-ip -n ns1 link set lo up
-ip -n ns2 link set lo up
-ip -n ns3 link set lo up
+# 仮想ネットワークインターフェースを作成する
+ip link add node1-veth0 type veth peer name node1-br0
+ip link add node2-veth0 type veth peer name node2-br0
+ip link add node3-veth0 type veth peer name node3-br0
 
-ip netns exec ns1 ping 192.168.1.2
+# インタフェースを名前空間に所属させる
+ip link set node1-veth0 netns node1
+ip link set node2-veth0 netns node2
+ip link set node3-veth0 netns node3
+ip link set node1-br0 netns bridge
+ip link set node2-br0 netns bridge
+ip link set node3-br0 netns bridge
+
+# インタフェースを有効にする
+ip netns exec node1 ip link set node1-veth0 up
+ip netns exec node2 ip link set node2-veth0 up
+ip netns exec node3 ip link set node3-veth0 up
+ip netns exec bridge ip link set node1-br0 up
+ip netns exec bridge ip link set node2-br0 up
+ip netns exec bridge ip link set node3-br0 up
+ip netns exec node1 ip link set lo up
+ip netns exec node2 ip link set lo up
+ip netns exec node3 ip link set lo up
+
+# アドレスを設定する
+ip netns exec node1 ip a add 192.168.1.1/24 dev node1-veth0 
+ip netns exec node2 ip a add 192.168.1.2/24 dev node2-veth0 
+ip netns exec node3 ip a add 192.168.1.3/24 dev node3-veth0 
+
+# ブリッジ(ハブ)を作成する
+ip netns exec bridge ip link add dev br0 type bridge
+ip netns exec bridge ip link set br0 up
+
+# インタフェースをブリッジに接続する
+ip netns exec bridge ip link set node1-br0 master br0
+ip netns exec bridge ip link set node2-br0 master br0
+ip netns exec bridge ip link set node3-br0 master br0
