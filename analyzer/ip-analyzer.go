@@ -1,4 +1,4 @@
-package main
+package analyzer
 
 import (
 	"fmt"
@@ -12,7 +12,7 @@ import (
 )
 
 var (
-	duration = 50 * time.Microsecond
+	duration = 1000 * time.Microsecond
 
 	iface = "node2-veth0"
 
