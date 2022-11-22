@@ -1,6 +1,7 @@
 package analyzer
 
 import (
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -12,6 +13,21 @@ import (
 	"github.com/mdlayher/arp"
 )
 
+type Result struct {
+	ID  int
+	IP  string
+	MAC string
+}
+
+func (r *Result) SetResult(ip string, mac string) {
+	r.IP = ip
+	r.MAC = mac
+}
+
+func (r *Result) GetResult() (string, string) {
+	return r.IP, r.MAC
+}
+
 var (
 	duration = 1000 * time.Microsecond
 
@@ -20,7 +36,12 @@ var (
 	networkIP = "192.168.1.0/24"
 )
 
-func Analyzer() string {
+func Analyze() string {
+	db, err := sql.Open("postgres", "host=127.0.0.1 port=5432 user=postgres password=postgres dbname=postgres sslmode=disable")
+	defer db.Close()
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	// Request hardware address for IP address
 	re := regexp.MustCompile(`\/\d*`)
@@ -41,8 +62,6 @@ func Analyzer() string {
 		log.Fatal(err)
 	}
 
-	resultMap := map[string]string{}
-
 	ip = ip.Next()
 
 	for ip.Less(broadcast) {
@@ -62,10 +81,13 @@ func Analyzer() string {
 
 		mac, err := c.Resolve(ip)
 		if err != nil {
-			// fmt.Println("error: ", err)
+			fmt.Println("error: ", err)
 		} else {
-			resultMap[ip.String()] = mac.String()
-			fmt.Printf("%s -> %s\n", ip, mac)
+			result, err := db.Exec("INSERT INTO ip_analyzer (ip, mac) VALUES ($1, $2) RETURNING id", ip, mac)
+			if err != nil {
+				log.Fatal(err)
+			}
+			log.Default().Println(result)
 		}
 		err = c.Close()
 		if err != nil {
@@ -74,10 +96,47 @@ func Analyzer() string {
 		ip = ip.Next()
 	}
 
-	resultJson, err := json.Marshal(resultMap)
+	return ""
+}
+
+func ArpResult() string {
+	db, err := sql.Open("postgres", "host=127.0.0.1 port=5432 user=postgres password=postgres dbname=postgres sslmode=disable")
+	defer db.Close()
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	return string(resultJson)
+	rows, err := db.Query("SELECT ip, mac FROM ip_analyzer")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	var id int
+	var ip string
+	var mac string
+
+	var result []Result
+
+	for rows.Next() {
+		switch err := rows.Scan(&id, &ip, &mac); err {
+		case sql.ErrNoRows:
+			fmt.Println("No rows were returned!")
+		case nil:
+			fmt.Printf("id: %d, ip: %s, mac: %s", id, ip, mac)
+
+			result = append(result, Result{ID: id, IP: ip, MAC: mac})
+		default:
+			if err != nil {
+				log.Fatal(err)
+			}
+		}
+	}
+
+	resultJSON, err := json.Marshal(result)
+
+	return string(resultJSON)
+}
+
+func GetProgress() string {
+	return ""
 }
