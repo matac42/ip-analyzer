@@ -1,6 +1,7 @@
 package analyzer
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 	"net"
@@ -19,7 +20,7 @@ var (
 	networkIP = "192.168.1.0/24"
 )
 
-func main() {
+func Analyzer() string {
 
 	// Request hardware address for IP address
 	re := regexp.MustCompile(`\/\d*`)
@@ -39,7 +40,11 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	resultMap := map[string]string{}
+
 	ip = ip.Next()
+
 	for ip.Less(broadcast) {
 		ifi, err := net.InterfaceByName(iface)
 		if err != nil {
@@ -59,6 +64,7 @@ func main() {
 		if err != nil {
 			// fmt.Println("error: ", err)
 		} else {
+			resultMap[ip.String()] = mac.String()
 			fmt.Printf("%s -> %s\n", ip, mac)
 		}
 		err = c.Close()
@@ -67,4 +73,11 @@ func main() {
 		}
 		ip = ip.Next()
 	}
+
+	resultJson, err := json.Marshal(resultMap)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	return string(resultJson)
 }
